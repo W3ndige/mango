@@ -67,6 +67,10 @@ bool Yara::init_scanner() {
     return true;
 }
 
+void Yara::clean_results() {
+    this->results.clear();
+}
+
 
 bool Yara::scan_file(const char *path) {
     std::ifstream scannedFile(path, std::ios::binary | std::ios::ate);
@@ -95,25 +99,18 @@ bool Yara::scan_file(const char *path) {
     return true;
 }
 
-void Yara::iterate_matches(const struct YRX_RULE *rule, ScanResult *scan_result) {
-    YRX_RESULT result = yrx_rule_iter_patterns(rule, Yara::on_pattern_cb, scan_result);
-    if (result != YRX_RESULT::SUCCESS) {
-        spdlog::error("Failed to iterate over patterns. Error: {}", yrx_last_error());
-        return;
-    }
-    
-    return;
-}
+std::vector<const char *> Yara::getMatchedIdentifiersForFile(const char *path) {
+    if (this->results.count(path) > 0) {
+        return this->results[path];
+    } 
+
+    return std::vector<const char *>();
+
+} 
 
 void Yara::on_matching_cb(const struct YRX_RULE *rule, void *data) {
     Yara *yara = static_cast<Yara*>(data);
 
-    ScanResult scan_result = ScanResult {}; 
-    scan_result.initialized = false;
-    scan_result.exception = false;
-
-    scan_result.file = yara->current_file;
-    
     const uint8_t *identifier = nullptr;
     size_t identifierLength = 0;
 
@@ -126,17 +123,21 @@ void Yara::on_matching_cb(const struct YRX_RULE *rule, void *data) {
     char *identifierString = new char[identifierLength + 1];
     std::memcpy(identifierString, identifier, identifierLength);
     identifierString[identifierLength] = '\0';
-
-    scan_result.ruleName = identifierString;
     
-    iterate_matches(rule, &scan_result);
+    yara->results[yara->current_file].push_back(identifierString);
+
+    result = yrx_rule_iter_patterns(rule, Yara::on_pattern_cb, data);
+    if (result != YRX_RESULT::SUCCESS) {
+        spdlog::error("Failed to iterate over patterns. Error: {}", yrx_last_error());
+        return;
+    }
     
 }
 
 
 void Yara::on_pattern_cb(const struct YRX_PATTERN *pattern, void *data) {
-    ScanResult *scan_result = static_cast<ScanResult*>(data);
-    
+    Yara *yara = static_cast<Yara*>(data);
+   
     const uint8_t *identifier = nullptr;
     size_t identifierLength = 0;
 
@@ -150,23 +151,19 @@ void Yara::on_pattern_cb(const struct YRX_PATTERN *pattern, void *data) {
     std::memcpy(identifierString, identifier, identifierLength);
     identifierString[identifierLength] = '\0';
     
-    scan_result->pattern = identifierString;
-    
 
-    result = yrx_pattern_iter_matches(pattern, on_pattern_iter_matches, &data);
-
-    spdlog::info("[{}] Matched {}:{}", scan_result->file, scan_result->ruleName, scan_result->pattern);
+    result = yrx_pattern_iter_matches(pattern, on_pattern_matches_cb, &data);
+    if (result != YRX_RESULT::SUCCESS) {
+        spdlog::error("Failed to iterate over pattern matches. Error: {}", yrx_last_error());
+        return;
+    }
+ 
 }
 
 
-
-void Yara::on_pattern_iter_matches(const struct YRX_MATCH *match, void *data) {
-    ScanResult *scan_result = static_cast<ScanResult*>(data);
-    
-    
-
-
-
+void Yara::on_pattern_matches_cb(const struct YRX_MATCH *match, void *data) {
+     Yara *yara = static_cast<Yara*>(data);
+   
 }
 
 
