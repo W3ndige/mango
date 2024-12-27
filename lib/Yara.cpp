@@ -1,5 +1,4 @@
 #include "Yara.hpp"
-#include "yara_x.h"
 
 #include <cstddef>
 #include <cstdint>

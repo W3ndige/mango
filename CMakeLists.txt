@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 set(LIB_DIR ${CMAKE_SOURCE_DIR}/lib)
 set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/external)
-set(BUILD_DIR ${CMAKE_SOURCE_DIR}/build)
+set(BUILD_DIR ${CMAKE_BINARY_DIR}/bin)  # Use binary dir for output
 
 # Specify the build output directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIR})
@@ -29,16 +29,21 @@ include_directories(${EXTERNAL_DIR} ${LIB_DIR} ${YARA_X_CAPI_INCLUDE_DIRS})
 # Link directories from pkg-config
 link_directories(${YARA_X_CAPI_LIBRARY_DIRS})
 
-# Add source files
+# Add source files for the main executable
 file(GLOB_RECURSE SRC_FILES ${SRC_DIR}/*.cpp)
 
-# Add the executable target
+# Add Yara library (lib/Yara.cpp)
+add_library(Yara STATIC lib/Yara.cpp)
+target_include_directories(Yara PUBLIC ${LIB_DIR})
+target_link_libraries(Yara PRIVATE ${YARA_X_CAPI_LIBRARIES})
+target_compile_definitions(Yara PRIVATE ${YARA_X_CAPI_CFLAGS_OTHER})
+target_compile_options(Yara PRIVATE ${YARA_X_CAPI_CFLAGS})
+
+# Add the main executable target
 add_executable(mango ${SRC_FILES})
-target_sources(mango PRIVATE lib/Yara.cpp)
 
-# Link the YARA library
-target_link_libraries(mango ${YARA_X_CAPI_LIBRARIES})
+# Link the main executable with the Yara library and YARA_X_CAPI
+target_link_libraries(mango PRIVATE Yara ${YARA_X_CAPI_LIBRARIES})
 
-# Add definitions from pkg-config (if any)
-target_compile_definitions(mango PRIVATE ${YARA_X_CAPI_CFLAGS_OTHER})
-target_compile_options(mango PRIVATE ${YARA_X_CAPI_CFLAGS})
+# Add tests subdirectory
+add_subdirectory(tests)
