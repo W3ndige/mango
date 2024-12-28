@@ -1,8 +1,10 @@
 #include "Yara.hpp"
+#include "yara_x.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
+#include <tuple>
 #include <vector>
 #include <spdlog/spdlog.h>
 
@@ -15,7 +17,7 @@ Yara::Yara(uint32_t flags) {
 }
 
 
-bool Yara::add_source(const char *source) {
+bool Yara::addSource(const char *source) {
     YRX_RESULT result = yrx_compiler_add_source(this->compiler, source);
     if (result != YRX_RESULT::SUCCESS) {
         spdlog::error("Failed to add source to compiler. Error: {}", yrx_last_error());
@@ -25,7 +27,7 @@ bool Yara::add_source(const char *source) {
     return true;
 }
 
-bool Yara::add_source_from_file(const char *path) {
+bool Yara::addSourceFromFile(const char *path) {
     std::ifstream sourceFile(path, std::ios::in | std::ios::ate);
     if (!sourceFile) {
         spdlog::error("Failed to read source file: {}", path);
@@ -38,11 +40,11 @@ bool Yara::add_source_from_file(const char *path) {
     std::string source(fileSize, '\0');
     sourceFile.read(&source[0], fileSize);
 
-    return add_source(source.c_str());
+    return addSource(source.c_str());
 }
 
 
-bool Yara::init_scanner() {
+bool Yara::initScanner() {
     this->rules = yrx_compiler_build(this->compiler);
 
     if (this->rules == nullptr) {
@@ -57,7 +59,7 @@ bool Yara::init_scanner() {
         return false;
     }
     
-    result = yrx_scanner_on_matching_rule(scanner, this->on_matching_cb, this);
+    result = yrx_scanner_on_matching_rule(scanner, this->onMatchingCb, this);
 
     if (result != YRX_RESULT::SUCCESS) {
         spdlog::error("Failed to add on match callback. Error: {}", yrx_last_error());
@@ -67,12 +69,12 @@ bool Yara::init_scanner() {
     return true;
 }
 
-void Yara::clean_results() {
+void Yara::cleanResults() {
     this->results.clear();
 }
 
 
-bool Yara::scan_file(const char *path) {
+bool Yara::scanFile(const char *path) {
     std::ifstream scannedFile(path, std::ios::binary | std::ios::ate);
     if (!scannedFile) {
         spdlog::error("Failed to open binary: {}", path);
@@ -99,16 +101,15 @@ bool Yara::scan_file(const char *path) {
     return true;
 }
 
-std::vector<const char *> Yara::getMatchedIdentifiersForFile(const char *path) {
-    if (this->results.count(path) > 0) {
+RuleMap Yara::getMatchedIdentifiersForFile(const char *path) {
+    if (!this->results.empty()) {
         return this->results[path];
-    } 
+    }
 
-    return std::vector<const char *>();
-
+    return RuleMap();
 } 
 
-void Yara::on_matching_cb(const struct YRX_RULE *rule, void *data) {
+void Yara::onMatchingCb(const struct YRX_RULE *rule, void *data) {
     Yara *yara = static_cast<Yara*>(data);
 
     const uint8_t *identifier = nullptr;
@@ -124,9 +125,9 @@ void Yara::on_matching_cb(const struct YRX_RULE *rule, void *data) {
     std::memcpy(identifierString, identifier, identifierLength);
     identifierString[identifierLength] = '\0';
     
-    yara->results[yara->current_file].push_back(identifierString);
-
-    result = yrx_rule_iter_patterns(rule, Yara::on_pattern_cb, data);
+    yara->current_rule = identifierString;
+    
+    result = yrx_rule_iter_patterns(rule, Yara::onPatternCb, data);
     if (result != YRX_RESULT::SUCCESS) {
         spdlog::error("Failed to iterate over patterns. Error: {}", yrx_last_error());
         return;
@@ -135,7 +136,7 @@ void Yara::on_matching_cb(const struct YRX_RULE *rule, void *data) {
 }
 
 
-void Yara::on_pattern_cb(const struct YRX_PATTERN *pattern, void *data) {
+void Yara::onPatternCb(const struct YRX_PATTERN *pattern, void *data) {
     Yara *yara = static_cast<Yara*>(data);
    
     const uint8_t *identifier = nullptr;
@@ -150,9 +151,9 @@ void Yara::on_pattern_cb(const struct YRX_PATTERN *pattern, void *data) {
     char *identifierString = new char[identifierLength + 1];
     std::memcpy(identifierString, identifier, identifierLength);
     identifierString[identifierLength] = '\0';
-    
+    yara->current_pattern = identifierString;
 
-    result = yrx_pattern_iter_matches(pattern, on_pattern_matches_cb, &data);
+    result = yrx_pattern_iter_matches(pattern, onPatternMatchesCb, data);
     if (result != YRX_RESULT::SUCCESS) {
         spdlog::error("Failed to iterate over pattern matches. Error: {}", yrx_last_error());
         return;
@@ -161,9 +162,11 @@ void Yara::on_pattern_cb(const struct YRX_PATTERN *pattern, void *data) {
 }
 
 
-void Yara::on_pattern_matches_cb(const struct YRX_MATCH *match, void *data) {
-     Yara *yara = static_cast<Yara*>(data);
-   
+void Yara::onPatternMatchesCb(const struct YRX_MATCH *match, void *data) {
+    Yara *yara = static_cast<Yara*>(data);
+    
+    yara->results[yara->current_file][yara->current_rule][yara->current_pattern].push_back(std::make_tuple(match->offset, match->length));
+    spdlog::info("[{}] Matched {}:{} at {}..{}+{}", yara->current_file, yara->current_rule, yara->current_pattern, match->offset, match->offset, match->length);
 }
 
 

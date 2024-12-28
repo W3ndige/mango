@@ -1,4 +1,4 @@
-#include <unordered_map>
+#include <map>
 #include <cstdint>
 #include <sys/wait.h>
 #include <vector>
@@ -10,20 +10,23 @@ extern "C" {
 }
 
 
+using PatternMatch  = std::tuple<int, int>;
+using PatternMap    = std::map<const char *, std::vector<PatternMatch>>;
+using RuleMap       = std::map<const char *, PatternMap>;
+using FileMap       = std::map<const char *, RuleMap>;
+
 class Yara {  
     public:
         Yara(uint32_t);
 
-        bool add_source(const char *);
-        bool add_source_from_file(const char *);
-        bool init_scanner();
-        bool scan_file(const char *);
+        bool addSource(const char *);
+        bool addSourceFromFile(const char *);
+        bool initScanner();
+        bool scanFile(const char *);
         
-        void clean_results();
+        void cleanResults();
 
-
-        std::vector<const char *> getMatchedIdentifiersForFile(const char *); 
-
+        RuleMap getMatchedIdentifiersForFile(const char *); 
 
         ~Yara();
     
@@ -33,10 +36,12 @@ class Yara {
         YRX_SCANNER *scanner    = nullptr;
 
         const char *current_file    = nullptr;
+        const char *current_rule    = nullptr;
+        const char *current_pattern = nullptr;
+
+        FileMap results;
         
-        std::unordered_map<const char *, std::vector<const char *>> results;
-        
-        static void on_matching_cb(const struct YRX_RULE *, void *);
-        static void on_pattern_cb(const struct YRX_PATTERN *, void *);
-        static void on_pattern_matches_cb(const struct YRX_MATCH *, void *);
+        static void onMatchingCb(const struct YRX_RULE *, void *);
+        static void onPatternCb(const struct YRX_PATTERN *, void *);
+        static void onPatternMatchesCb(const struct YRX_MATCH *, void *);
 };
