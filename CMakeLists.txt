@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 set(LIB_DIR ${CMAKE_SOURCE_DIR}/lib)
 set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/external)
-set(BUILD_DIR ${CMAKE_BINARY_DIR}/bin)  # Use binary dir for output
+set(BUILD_DIR ${CMAKE_BINARY_DIR})  # Use binary dir for output
 
 # Specify the build output directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BUILD_DIR})
