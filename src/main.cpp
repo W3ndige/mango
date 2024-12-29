@@ -1,22 +1,52 @@
 #include "Yara.hpp"
 
+#include <filesystem>
 #include <CLI11.hpp>
+
+
+
+void start_scanning(std::string source, std::string target) {
+    std::filesystem::path source_path = source;
+    std::filesystem::path target_path = target;
+    
+    Yara yara = Yara(0);
+
+    if (std::filesystem::is_directory(source_path)) {
+        for (auto &entry : std::filesystem::directory_iterator(source_path)) {
+            if (entry.is_regular_file() && (entry.path().extension().string() == ".yara" || entry.path().extension().string() == ".yar")) {
+                yara.addSourceFromFile(entry.path().c_str());
+            }
+        }
+    } else {
+        yara.addSourceFromFile(source.c_str());
+    }
+
+    yara.initScanner();
+
+    if (std::filesystem::is_directory(target_path)) {
+        for (auto &entry : std::filesystem::directory_iterator(target_path)) {
+            if (entry.is_regular_file()) {
+                yara.scanFile(entry.path().c_str());
+            }
+        }
+    } else {
+        yara.scanFile(target.c_str());
+    }
+}
+
+
 
 int main(int argc, char *argv[]) {
 
     CLI::App app{"YaraX scanner"};
 
-    std::string yara_source;
-    app.add_option("-y, --yara", yara_source, "Path to YaraX rule.")->required();
+    std::string source;
+    app.add_option("-y, --yara", source, "Path to YaraX rule.")->required();
 
     std::string target;
     app.add_option("-t, --target", target, "Path to the file to scan.")->required();
 
     CLI11_PARSE(app, argc, argv);
-
-    Yara yara = Yara(0);
     
-    yara.addSourceFromFile(yara_source.c_str());
-    yara.initScanner();
-    yara.scanFile(target.c_str());
+    start_scanning(source, target);
 }

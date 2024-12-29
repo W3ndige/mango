@@ -40,6 +40,8 @@ bool Yara::addSourceFromFile(const char *path) {
     std::string source(fileSize, '\0');
     sourceFile.read(&source[0], fileSize);
 
+    spdlog::info("Adding {} rule", path);
+
     return addSource(source.c_str());
 }
 
@@ -65,7 +67,6 @@ bool Yara::initScanner() {
         spdlog::error("Failed to add on match callback. Error: {}", yrx_last_error());
         return false;
     }
-
     return true;
 }
 
@@ -132,7 +133,6 @@ void Yara::onMatchingCb(const struct YRX_RULE *rule, void *data) {
         spdlog::error("Failed to iterate over patterns. Error: {}", yrx_last_error());
         return;
     }
-    
 }
 
 
@@ -158,7 +158,6 @@ void Yara::onPatternCb(const struct YRX_PATTERN *pattern, void *data) {
         spdlog::error("Failed to iterate over pattern matches. Error: {}", yrx_last_error());
         return;
     }
- 
 }
 
 

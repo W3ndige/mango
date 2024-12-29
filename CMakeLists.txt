@@ -45,5 +45,8 @@ add_executable(mango ${SRC_FILES})
 # Link the main executable with the Yara library and YARA_X_CAPI
 target_link_libraries(mango PRIVATE Yara ${YARA_X_CAPI_LIBRARIES})
 
+# Enable testing
+enable_testing()
+
 # Add tests subdirectory
 add_subdirectory(tests)
