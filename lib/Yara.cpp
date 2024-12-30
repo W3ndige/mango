@@ -74,6 +74,10 @@ void Yara::cleanResults() {
     this->results.clear();
 }
 
+void Yara::addOnFullMatchCallback(FullMatchCb callback) {
+    this->on_full_match_callback = callback;
+}
+
 
 bool Yara::scanFile(const char *path) {
     std::ifstream scannedFile(path, std::ios::binary | std::ios::ate);
@@ -99,7 +103,11 @@ bool Yara::scanFile(const char *path) {
         return false;
     }
 
-    return true;
+    while (active_callbacks > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    return this->getMatchedIdentifiersForFile(path).size() > 0;
 }
 
 RuleMap Yara::getMatchedIdentifiersForFile(const char *path) {
@@ -112,6 +120,8 @@ RuleMap Yara::getMatchedIdentifiersForFile(const char *path) {
 
 void Yara::onMatchingCb(const struct YRX_RULE *rule, void *data) {
     Yara *yara = static_cast<Yara*>(data);
+    
+    yara->active_callbacks++;
 
     const uint8_t *identifier = nullptr;
     size_t identifierLength = 0;
@@ -133,12 +143,16 @@ void Yara::onMatchingCb(const struct YRX_RULE *rule, void *data) {
         spdlog::error("Failed to iterate over patterns. Error: {}", yrx_last_error());
         return;
     }
+
+    yara->active_callbacks--;
 }
 
 
 void Yara::onPatternCb(const struct YRX_PATTERN *pattern, void *data) {
     Yara *yara = static_cast<Yara*>(data);
-   
+    
+    yara->active_callbacks++;
+
     const uint8_t *identifier = nullptr;
     size_t identifierLength = 0;
 
@@ -158,14 +172,20 @@ void Yara::onPatternCb(const struct YRX_PATTERN *pattern, void *data) {
         spdlog::error("Failed to iterate over pattern matches. Error: {}", yrx_last_error());
         return;
     }
+
+    yara->active_callbacks--;
 }
 
 
 void Yara::onPatternMatchesCb(const struct YRX_MATCH *match, void *data) {
     Yara *yara = static_cast<Yara*>(data);
     
+    yara->active_callbacks++;
+
     yara->results[yara->current_file][yara->current_rule][yara->current_pattern].push_back(std::make_tuple(match->offset, match->length));
     spdlog::info("[{}] Matched {}:{} at {}..{}+{}", yara->current_file, yara->current_rule, yara->current_pattern, match->offset, match->offset, match->length);
+
+    yara->active_callbacks--;
 }
 
 

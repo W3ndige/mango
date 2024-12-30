@@ -39,6 +39,13 @@ target_link_libraries(Yara PRIVATE ${YARA_X_CAPI_LIBRARIES})
 target_compile_definitions(Yara PRIVATE ${YARA_X_CAPI_CFLAGS_OTHER})
 target_compile_options(Yara PRIVATE ${YARA_X_CAPI_CFLAGS})
 
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
+
+if (ENABLE_ASAN)
+    add_compile_options(-fsanitize=address -g)
+    add_link_options(-fsanitize=address)
+endif()
+
 # Add the main executable target
 add_executable(mango ${SRC_FILES})
 

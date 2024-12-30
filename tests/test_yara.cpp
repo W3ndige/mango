@@ -17,13 +17,11 @@ TEST_CASE("Test basic Yara scan", "[Yara]") {
         REQUIRE(result == true);
     }
     
-    /*
     SECTION("File does not contain a match") {
         // Test a file expected to return false
         bool result = yara.scanFile("../tests/files/no_match_foo_test.txt");
         REQUIRE(result == false);
     }
-    */ 
 }
 
 TEST_CASE("Tests if there are any identifiers saved from the match.", "[Yara Matched Identifiers]") {

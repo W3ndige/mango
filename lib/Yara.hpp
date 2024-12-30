@@ -14,6 +14,8 @@ using PatternMatch  = std::tuple<int, int>;
 using PatternMap    = std::map<const char *, std::vector<PatternMatch>>;
 using RuleMap       = std::map<const char *, PatternMap>;
 using FileMap       = std::map<const char *, RuleMap>;
+using FullMatchCb   = std::function<void(RuleMap, void *)>;
+
 
 class Yara {  
     public:
@@ -25,6 +27,7 @@ class Yara {
         bool scanFile(const char *);
         
         void cleanResults();
+        void addOnFullMatchCallback(FullMatchCb);
 
         RuleMap getMatchedIdentifiersForFile(const char *); 
 
@@ -34,10 +37,14 @@ class Yara {
         YRX_COMPILER *compiler  = nullptr;
         YRX_RULES *rules        = nullptr;
         YRX_SCANNER *scanner    = nullptr;
+        
+        int active_callbacks     = 0;
 
         const char *current_file    = nullptr;
         const char *current_rule    = nullptr;
         const char *current_pattern = nullptr;
+
+        FullMatchCb on_full_match_callback = nullptr;
 
         FileMap results;
         
