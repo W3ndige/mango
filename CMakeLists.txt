@@ -39,6 +39,9 @@ target_link_libraries(Yara PRIVATE ${YARA_X_CAPI_LIBRARIES})
 target_compile_definitions(Yara PRIVATE ${YARA_X_CAPI_CFLAGS_OTHER})
 target_compile_options(Yara PRIVATE ${YARA_X_CAPI_CFLAGS})
 
+add_subdirectory(external/spdlog)
+target_link_libraries(Yara PRIVATE spdlog::spdlog)
+
 option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 
 if (ENABLE_ASAN)
