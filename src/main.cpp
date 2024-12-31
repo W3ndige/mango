@@ -4,11 +4,11 @@
 #include <CLI/CLI.hpp>
 
 
-void start_scanning(std::string source, std::string target) {
+void start_scanning(std::string source, std::string target, bool dumpMatches) {
     std::filesystem::path source_path = source;
     std::filesystem::path target_path = target;
     
-    Yara yara = Yara(0);
+    Yara yara = Yara(0, dumpMatches);
 
     if (std::filesystem::is_directory(source_path)) {
         for (auto &entry : std::filesystem::directory_iterator(source_path)) {
@@ -45,7 +45,10 @@ int main(int argc, char *argv[]) {
     std::string target;
     app.add_option("-t, --target", target, "Path to the file to scan.")->required();
 
+    bool dumpMatches;
+    app.add_flag("-d, --dump", dumpMatches, "Dump each match to the file");
+
     CLI11_PARSE(app, argc, argv);
     
-    start_scanning(source, target);
+    start_scanning(source, target, dumpMatches);
 }

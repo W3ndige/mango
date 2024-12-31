@@ -3,13 +3,25 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <fstream>
 #include <tuple>
 #include <vector>
 #include <spdlog/spdlog.h>
 
-
 Yara::Yara(uint32_t flags) {
+    this->dumpMatches = false;
+
+    YRX_RESULT result = yrx_compiler_create(flags, &this->compiler);
+    if (result != YRX_RESULT::SUCCESS) {
+        spdlog::error("Failed to create Yara compiler. Error: {}", yrx_last_error()); 
+    }
+}
+
+
+Yara::Yara(uint32_t flags, bool dumpMatches) {
+    this->dumpMatches = dumpMatches;
+
     YRX_RESULT result = yrx_compiler_create(flags, &this->compiler);
     if (result != YRX_RESULT::SUCCESS) {
         spdlog::error("Failed to create Yara compiler. Error: {}", yrx_last_error()); 
@@ -89,15 +101,15 @@ bool Yara::scanFile(const char *path) {
     std::streamsize fileSize = scannedFile.tellg();
     scannedFile.seekg(0, std::ios::beg);
 
-    std::vector<uint8_t> fileData(fileSize);
-
-    if (!scannedFile.read(reinterpret_cast<char *>(fileData.data()), fileSize)) {
+    this->current_file_data = std::vector<uint8_t>(fileSize);
+    
+    if (!scannedFile.read(reinterpret_cast<char *>(current_file_data.data()), fileSize)) {
         spdlog::error("Failed to read binary");
         return false;
     }
     
     this->current_file = path;
-    YRX_RESULT result = yrx_scanner_scan(scanner, fileData.data(), fileSize);
+    YRX_RESULT result = yrx_scanner_scan(scanner, current_file_data.data(), fileSize);
     if (result != YRX_RESULT::SUCCESS) {
         spdlog::error("Failed to scan the binary. Error: {}", yrx_last_error());
         return false;
@@ -184,8 +196,40 @@ void Yara::onPatternMatchesCb(const struct YRX_MATCH *match, void *data) {
 
     yara->results[yara->current_file][yara->current_rule][yara->current_pattern].push_back(std::make_tuple(match->offset, match->length));
     spdlog::info("[{}] Matched {}:{} at {}..{}+{}", yara->current_file, yara->current_rule, yara->current_pattern, match->offset, match->offset, match->length);
+    
+    if (yara->dumpMatches) {
+        bool dumped = yara->dumpMatch(match);
+    }
 
     yara->active_callbacks--;
+}
+
+
+bool Yara::dumpMatch(const struct YRX_MATCH *match) { 
+
+    std::string matchFileName = std::format("{}/{}_{}", "./dumps", this->current_rule, this->current_pattern);
+
+    std::ofstream matchFile(matchFileName, std::ios::binary);
+
+    if (!matchFile) {
+        spdlog::error("Failed to open {}", matchFileName);
+        return false;
+
+    }
+
+    std::vector<uint8_t> matchBuffer = getMatchBuffer(match);
+    
+    spdlog::info("Dumping match to {}", matchFileName);
+
+    matchFile.write(reinterpret_cast<const char *>(matchBuffer.data()), matchBuffer.size());
+    matchFile.close();
+
+    return true;
+
+}
+
+std::vector<uint8_t> Yara::getMatchBuffer(const struct YRX_MATCH *match) {
+    return std::vector<uint8_t>(this->current_file_data.begin() + match->offset, this->current_file_data.begin() + match->offset + match->length);
 }
 
 

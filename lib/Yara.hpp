@@ -20,6 +20,7 @@ using FullMatchCb   = std::function<void(RuleMap, void *)>;
 class Yara {  
     public:
         Yara(uint32_t);
+        Yara(uint32_t, bool);
 
         bool addSource(const char *);
         bool addSourceFromFile(const char *);
@@ -34,6 +35,8 @@ class Yara {
         ~Yara();
     
     private:
+        bool dumpMatches; 
+
         YRX_COMPILER *compiler  = nullptr;
         YRX_RULES *rules        = nullptr;
         YRX_SCANNER *scanner    = nullptr;
@@ -43,6 +46,8 @@ class Yara {
         const char *current_file    = nullptr;
         const char *current_rule    = nullptr;
         const char *current_pattern = nullptr;
+        
+        std::vector<uint8_t> current_file_data; 
 
         FullMatchCb on_full_match_callback = nullptr;
 
@@ -51,4 +56,9 @@ class Yara {
         static void onMatchingCb(const struct YRX_RULE *, void *);
         static void onPatternCb(const struct YRX_PATTERN *, void *);
         static void onPatternMatchesCb(const struct YRX_MATCH *, void *);
+
+        bool dumpMatch(const struct YRX_MATCH *);
+        std::vector<uint8_t> getMatchBuffer(const struct YRX_MATCH*);
+
+
 };
