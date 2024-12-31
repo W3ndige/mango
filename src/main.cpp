@@ -1,8 +1,7 @@
 #include "Yara.hpp"
 
 #include <filesystem>
-#include <CLI11.hpp>
-
+#include <CLI/CLI.hpp>
 
 
 void start_scanning(std::string source, std::string target) {
