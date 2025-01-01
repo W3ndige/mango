@@ -4,8 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
-#include <tuple>
 #include <vector>
 #include <spdlog/spdlog.h>
 
@@ -39,10 +39,10 @@ bool Yara::addSource(const char *source) {
     return true;
 }
 
-bool Yara::addSourceFromFile(const char *path) {
+bool Yara::addSourceFromFile(std::filesystem::path path) {
     std::ifstream sourceFile(path, std::ios::in | std::ios::ate);
     if (!sourceFile) {
-        spdlog::error("Failed to read source file: {}", path);
+        spdlog::error("Failed to read source file: {}", path.string());
         return false;
     }
 
@@ -52,7 +52,7 @@ bool Yara::addSourceFromFile(const char *path) {
     std::string source(fileSize, '\0');
     sourceFile.read(&source[0], fileSize);
 
-    spdlog::info("Adding {} rule", path);
+    spdlog::info("Adding {} rule", path.string());
 
     return addSource(source.c_str());
 }
@@ -91,10 +91,10 @@ void Yara::addOnFullMatchCallback(FullMatchCb callback) {
 }
 
 
-bool Yara::scanFile(const char *path) {
+bool Yara::scanFile(std::filesystem::path path) {
     std::ifstream scannedFile(path, std::ios::binary | std::ios::ate);
     if (!scannedFile) {
-        spdlog::error("Failed to open binary: {}", path);
+        spdlog::error("Failed to open binary: {}", path.string());
         return false;
     }
 
@@ -122,7 +122,7 @@ bool Yara::scanFile(const char *path) {
     return this->getMatchedIdentifiersForFile(path).size() > 0;
 }
 
-RuleMap Yara::getMatchedIdentifiersForFile(const char *path) {
+RuleMap Yara::getMatchedIdentifiersForFile(std::filesystem::path path) {
     if (!this->results.empty()) {
         return this->results[path];
     }
@@ -195,7 +195,7 @@ void Yara::onPatternMatchesCb(const struct YRX_MATCH *match, void *data) {
     yara->active_callbacks++;
 
     yara->results[yara->current_file][yara->current_rule][yara->current_pattern].push_back(std::make_tuple(match->offset, match->length));
-    spdlog::info("[{}] Matched {}:{} at {}..{}+{}", yara->current_file, yara->current_rule, yara->current_pattern, match->offset, match->offset, match->length);
+    spdlog::info("[{}] Matched {}:{} at {}..{}+{}", yara->current_file.string(), yara->current_rule, yara->current_pattern, match->offset, match->offset, match->length);
     
     if (yara->dumpMatches) {
         bool dumped = yara->dumpMatch(match);
@@ -207,7 +207,7 @@ void Yara::onPatternMatchesCb(const struct YRX_MATCH *match, void *data) {
 
 bool Yara::dumpMatch(const struct YRX_MATCH *match) { 
 
-    std::string matchFileName = std::format("{}/{}_{}", "./dumps", this->current_rule, this->current_pattern);
+    std::string matchFileName = std::format("{}/{}_{}_{}", "./dumps", this->current_file.filename().string(), this->current_rule, this->current_pattern);
 
     std::ofstream matchFile(matchFileName, std::ios::binary);
 
@@ -217,9 +217,13 @@ bool Yara::dumpMatch(const struct YRX_MATCH *match) {
 
     }
 
-    std::vector<uint8_t> matchBuffer = getMatchBuffer(match);
+    std::vector<uint8_t> matchBuffer = std::vector<uint8_t>(
+            this->current_file_data.begin() + match->offset, 
+            this->current_file_data.begin() + match->offset + match->length
+    );
+
     
-    spdlog::info("Dumping match to {}", matchFileName);
+    spdlog::info("[{}] Dumping match to {}", this->current_file.string(), matchFileName);
 
     matchFile.write(reinterpret_cast<const char *>(matchBuffer.data()), matchBuffer.size());
     matchFile.close();
@@ -227,11 +231,6 @@ bool Yara::dumpMatch(const struct YRX_MATCH *match) {
     return true;
 
 }
-
-std::vector<uint8_t> Yara::getMatchBuffer(const struct YRX_MATCH *match) {
-    return std::vector<uint8_t>(this->current_file_data.begin() + match->offset, this->current_file_data.begin() + match->offset + match->length);
-}
-
 
 Yara::~Yara() {
     yrx_compiler_destroy(compiler);

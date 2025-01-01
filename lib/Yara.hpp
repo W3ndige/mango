@@ -1,6 +1,7 @@
 #include <map>
 #include <cstdint>
 #include <sys/wait.h>
+#include <filesystem>
 #include <vector>
 
 extern "C" {
@@ -13,7 +14,7 @@ extern "C" {
 using PatternMatch  = std::tuple<int, int>;
 using PatternMap    = std::map<const char *, std::vector<PatternMatch>>;
 using RuleMap       = std::map<const char *, PatternMap>;
-using FileMap       = std::map<const char *, RuleMap>;
+using FileMap       = std::map<std::filesystem::path, RuleMap>;
 using FullMatchCb   = std::function<void(RuleMap, void *)>;
 
 
@@ -23,14 +24,14 @@ class Yara {
         Yara(uint32_t, bool);
 
         bool addSource(const char *);
-        bool addSourceFromFile(const char *);
+        bool addSourceFromFile(std::filesystem::path);
         bool initScanner();
-        bool scanFile(const char *);
+        bool scanFile(std::filesystem::path);
         
         void cleanResults();
         void addOnFullMatchCallback(FullMatchCb);
 
-        RuleMap getMatchedIdentifiersForFile(const char *); 
+        RuleMap getMatchedIdentifiersForFile(std::filesystem::path);
 
         ~Yara();
     
@@ -43,7 +44,8 @@ class Yara {
         
         int active_callbacks     = 0;
 
-        const char *current_file    = nullptr;
+        std::filesystem::path current_file;
+        
         const char *current_rule    = nullptr;
         const char *current_pattern = nullptr;
         
@@ -58,7 +60,6 @@ class Yara {
         static void onPatternMatchesCb(const struct YRX_MATCH *, void *);
 
         bool dumpMatch(const struct YRX_MATCH *);
-        std::vector<uint8_t> getMatchBuffer(const struct YRX_MATCH*);
-
+        
 
 };

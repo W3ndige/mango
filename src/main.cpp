@@ -13,7 +13,7 @@ void start_scanning(std::string source, std::string target, bool dumpMatches) {
     if (std::filesystem::is_directory(source_path)) {
         for (auto &entry : std::filesystem::directory_iterator(source_path)) {
             if (entry.is_regular_file() && (entry.path().extension().string() == ".yara" || entry.path().extension().string() == ".yar")) {
-                yara.addSourceFromFile(entry.path().c_str());
+                yara.addSourceFromFile(entry);
             }
         }
     } else {
@@ -40,12 +40,12 @@ int main(int argc, char *argv[]) {
     CLI::App app{"YaraX scanner"};
 
     std::string source;
-    app.add_option("-y, --yara", source, "Path to YaraX rule.")->required();
-
     std::string target;
-    app.add_option("-t, --target", target, "Path to the file to scan.")->required();
-
     bool dumpMatches;
+    
+    app.add_option("-y, --yara", source, "Path to YaraX rule.")->required();
+    app.add_option("-t, --target", target, "Path to the file to scan.")->required();
+    
     app.add_flag("-d, --dump", dumpMatches, "Dump each match to the file");
 
     CLI11_PARSE(app, argc, argv);
