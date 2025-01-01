@@ -92,6 +92,9 @@ void Yara::addOnFullMatchCallback(FullMatchCb callback) {
 
 
 bool Yara::scanFile(std::filesystem::path path) {
+
+    spdlog::info("[{}] Scanning...", path.string());
+
     std::ifstream scannedFile(path, std::ios::binary | std::ios::ate);
     if (!scannedFile) {
         spdlog::error("Failed to open binary: {}", path.string());
