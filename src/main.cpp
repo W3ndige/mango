@@ -4,6 +4,7 @@
 #include <CLI/CLI.hpp>
 
 
+
 void start_scanning(std::string source, std::string target, bool dumpMatches, bool recurse) {
     std::filesystem::path source_path = source;
     std::filesystem::path target_path = target;
@@ -11,36 +12,17 @@ void start_scanning(std::string source, std::string target, bool dumpMatches, bo
     Yara yara = Yara(0, dumpMatches);
 
     if (std::filesystem::is_directory(source_path)) {
-        for (auto &entry : std::filesystem::directory_iterator(source_path)) {
-            if (entry.is_regular_file() && (entry.path().extension().string() == ".yara" || entry.path().extension().string() == ".yar")) {
-                yara.addSourceFromFile(entry);
-            }
-        }
+        yara.addSourceFromDirectory(source_path, false);
     } else {
-        yara.addSourceFromFile(source.c_str());
+        yara.addSourceFromFile(source_path);
     }
 
     yara.initScanner();
 
-
-
     if (std::filesystem::is_directory(target_path)) {
-        if (recurse) {
-            for (auto &entry : std::filesystem::recursive_directory_iterator(target_path)) {
-                if (entry.is_regular_file()) {
-                    yara.scanFile(entry.path().c_str());
-                }
-            }
-        } else {
-            for (auto &entry : std::filesystem::directory_iterator(target_path)) {
-                if (entry.is_regular_file()) {
-                    yara.scanFile(entry.path().c_str());
-                }
-            }
-        }
-
-   } else {
-        yara.scanFile(target.c_str());
+        yara.scanDirectory(target_path, recurse);    
+    } else {
+        yara.scanFile(target_path);
     }
 }
 

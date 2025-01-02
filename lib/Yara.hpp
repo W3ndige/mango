@@ -25,8 +25,11 @@ class Yara {
 
         bool addSource(const char *);
         bool addSourceFromFile(std::filesystem::path);
+        bool addSourceFromDirectory(std::filesystem::path, bool);
+
         bool initScanner();
         bool scanFile(std::filesystem::path);
+        bool scanDirectory(std::filesystem::path, bool);
         
         void cleanResults();
         void addOnFullMatchCallback(FullMatchCb);

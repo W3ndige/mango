@@ -57,6 +57,26 @@ bool Yara::addSourceFromFile(std::filesystem::path path) {
     return addSource(source.c_str());
 }
 
+bool Yara::addSourceFromDirectory(std::filesystem::path path, bool recursive) {
+    if (!std::filesystem::is_directory(path)) {
+        spdlog::error("[{}] is not a directory.", path.string());
+        return false;
+    }
+    
+    if (recursive) {
+        for (auto &entry : std::filesystem::recursive_directory_iterator(path)) {
+            this->addSourceFromFile(entry.path());
+        }
+
+    } else {
+        for (auto &entry : std::filesystem::directory_iterator(path)) {
+            this->addSourceFromFile(entry.path());
+        }
+    }
+
+    
+    return true;
+}
 
 bool Yara::initScanner() {
     this->rules = yrx_compiler_build(this->compiler);
@@ -123,6 +143,27 @@ bool Yara::scanFile(std::filesystem::path path) {
     }
 
     return this->getMatchedIdentifiersForFile(path).size() > 0;
+}
+
+bool Yara::scanDirectory(std::filesystem::path path, bool recursive) {
+    if (!std::filesystem::is_directory(path)) {
+        spdlog::error("[{}] is not a directory.", path.string());
+        return false;
+    }
+    
+    if (recursive) {
+        for (auto &entry : std::filesystem::recursive_directory_iterator(path)) {
+            this->scanFile(entry.path());
+        }
+
+    } else {
+        for (auto &entry : std::filesystem::directory_iterator(path)) {
+            this->scanFile(entry.path());
+        }
+    }
+
+    
+    return true;
 }
 
 RuleMap Yara::getMatchedIdentifiersForFile(std::filesystem::path path) {
