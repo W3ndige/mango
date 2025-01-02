@@ -117,7 +117,7 @@ bool Yara::scanFile(std::filesystem::path path) {
 
     std::ifstream scannedFile(path, std::ios::binary | std::ios::ate);
     if (!scannedFile) {
-        spdlog::error("Failed to open binary: {}", path.string());
+        spdlog::error("[{}] Failed to open binary", path.string());
         return false;
     }
 
@@ -127,14 +127,14 @@ bool Yara::scanFile(std::filesystem::path path) {
     this->current_file_data = std::vector<uint8_t>(fileSize);
     
     if (!scannedFile.read(reinterpret_cast<char *>(current_file_data.data()), fileSize)) {
-        spdlog::error("Failed to read binary");
+        spdlog::error("[{}] Failed to read binary", path.string());
         return false;
     }
     
     this->current_file = path;
     YRX_RESULT result = yrx_scanner_scan(scanner, current_file_data.data(), fileSize);
     if (result != YRX_RESULT::SUCCESS) {
-        spdlog::error("Failed to scan the binary. Error: {}", yrx_last_error());
+        spdlog::error("[{}] Failed to scan the binary. Error: {}", path.string(), yrx_last_error());
         return false;
     }
 
@@ -152,10 +152,18 @@ bool Yara::scanDirectory(std::filesystem::path path, bool recursive) {
     }
     
     if (recursive) {
-        for (auto &entry : std::filesystem::recursive_directory_iterator(path)) {
-            this->scanFile(entry.path());
+        try {
+            for (std::filesystem::recursive_directory_iterator it(path, std::filesystem::directory_options::skip_permission_denied), end; it != end; ++it) {
+                try {
+                    this->scanFile(it->path());
+                } catch (const std::filesystem::filesystem_error &e) {
+                    spdlog::error("[{}] Error accessing file {}", it->path().string(), e.what());
+                    it.disable_recursion_pending(); 
+                }
         }
-
+        } catch (const std::filesystem::filesystem_error &e) {
+            spdlog::error("[{}] Error iterating directory {}", path.string(), e.what());
+        } 
     } else {
         for (auto &entry : std::filesystem::directory_iterator(path)) {
             this->scanFile(entry.path());
@@ -258,14 +266,12 @@ bool Yara::dumpMatch(const struct YRX_MATCH *match) {
     if (!matchFile) {
         spdlog::error("Failed to open {}", matchFileName);
         return false;
-
     }
 
     std::vector<uint8_t> matchBuffer = std::vector<uint8_t>(
             this->current_file_data.begin() + match->offset, 
             this->current_file_data.begin() + match->offset + match->length
     );
-
     
     spdlog::info("[{}] Dumping match to {}", this->current_file.string(), matchFileName);
 
