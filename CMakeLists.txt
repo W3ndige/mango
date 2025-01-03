@@ -33,14 +33,16 @@ link_directories(${YARA_X_CAPI_LIBRARY_DIRS})
 file(GLOB_RECURSE SRC_FILES ${SRC_DIR}/*.cpp)
 
 # Add Yara library (lib/Yara.cpp)
-add_library(Yara STATIC lib/Yara.cpp)
+add_library(Yara STATIC lib/Yara.cpp lib/Scanner.cpp)
 target_include_directories(Yara PUBLIC ${LIB_DIR})
 target_link_libraries(Yara PRIVATE ${YARA_X_CAPI_LIBRARIES})
 target_compile_definitions(Yara PRIVATE ${YARA_X_CAPI_CFLAGS_OTHER})
 target_compile_options(Yara PRIVATE ${YARA_X_CAPI_CFLAGS})
 
+
 add_subdirectory(external)
-target_link_libraries(Yara PRIVATE spdlog::spdlog)
+target_link_libraries(Yara PRIVATE spdlog::spdlog CLI11::CLI11)
+target_include_directories(Yara PRIVATE ${EXTERNAL_DIR}/CLI11/include)
 
 option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 
@@ -52,11 +54,10 @@ endif()
 # Add the main executable target
 add_executable(mango ${SRC_FILES})
 
-target_link_libraries(mango PRIVATE CLI11::CLI11)
-target_include_directories(mango PRIVATE ${EXTERNAL_DIR}/CLI11/include)
-
 # Link the main executable with the Yara library and YARA_X_CAPI
 target_link_libraries(mango PRIVATE Yara ${YARA_X_CAPI_LIBRARIES})
+target_include_directories(mango PRIVATE ${EXTERNAL_DIR}/CLI11/include)
+
 
 # Enable testing
 enable_testing()
