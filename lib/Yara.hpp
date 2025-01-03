@@ -22,6 +22,7 @@ class Yara {
     public:
         Yara(uint32_t);
         Yara(uint32_t, bool);
+        Yara(uint32_t, bool, bool);
 
         bool addSource(const char *);
         bool addSourceFromFile(std::filesystem::path);
@@ -40,6 +41,7 @@ class Yara {
     
     private:
         bool dumpMatches; 
+        bool verbose;
 
         YRX_COMPILER *compiler  = nullptr;
         YRX_RULES *rules        = nullptr;

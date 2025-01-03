@@ -11,6 +11,7 @@
 
 Yara::Yara(uint32_t flags) {
     this->dumpMatches = false;
+    this->verbose = false;
 
     YRX_RESULT result = yrx_compiler_create(flags, &this->compiler);
     if (result != YRX_RESULT::SUCCESS) {
@@ -18,9 +19,19 @@ Yara::Yara(uint32_t flags) {
     }
 }
 
-
 Yara::Yara(uint32_t flags, bool dumpMatches) {
     this->dumpMatches = dumpMatches;
+    this->verbose = false;
+
+    YRX_RESULT result = yrx_compiler_create(flags, &this->compiler);
+    if (result != YRX_RESULT::SUCCESS) {
+        spdlog::error("Failed to create Yara compiler. Error: {}", yrx_last_error()); 
+    }
+}
+
+Yara::Yara(uint32_t flags, bool dumpMatches, bool verbose) {
+    this->dumpMatches = dumpMatches;
+    this->verbose = verbose;
 
     YRX_RESULT result = yrx_compiler_create(flags, &this->compiler);
     if (result != YRX_RESULT::SUCCESS) {
@@ -112,8 +123,9 @@ void Yara::addOnFullMatchCallback(FullMatchCb callback) {
 
 
 bool Yara::scanFile(std::filesystem::path path) {
-
-    spdlog::info("[{}] Scanning...", path.string());
+    if (this->verbose) {
+        spdlog::info("[{}] Scanning...", path.string());
+    }
 
     std::ifstream scannedFile(path, std::ios::binary | std::ios::ate);
     if (!scannedFile) {

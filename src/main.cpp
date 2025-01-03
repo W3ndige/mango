@@ -5,11 +5,11 @@
 
 
 
-void start_scanning(std::string source, std::string target, bool dumpMatches, bool recurse) {
+void start_scanning(std::string source, std::string target, bool dumpMatches, bool recurse, bool verbose) {
     std::filesystem::path source_path = source;
     std::filesystem::path target_path = target;
     
-    Yara yara = Yara(0, dumpMatches);
+    Yara yara = Yara(0, dumpMatches, verbose);
 
     if (std::filesystem::is_directory(source_path)) {
         yara.addSourceFromDirectory(source_path, false);
@@ -35,6 +35,7 @@ int main(int argc, char *argv[]) {
     std::string source;
     std::string target;
 
+    bool verbose;
     bool dumpMatches;
     bool recurseDirectories;
 
@@ -43,8 +44,9 @@ int main(int argc, char *argv[]) {
     
     app.add_flag("-d, --dump", dumpMatches, "Dump each match to the file");
     app.add_flag("-r, --recursive", recurseDirectories, "Scan directories recursively");
+    app.add_flag("-v, --verbose", verbose, "Verbose output");
 
     CLI11_PARSE(app, argc, argv);
     
-    start_scanning(source, target, dumpMatches, recurseDirectories);
+    start_scanning(source, target, dumpMatches, recurseDirectories, verbose);
 }
