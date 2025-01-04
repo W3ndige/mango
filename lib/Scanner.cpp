@@ -1,22 +1,16 @@
 #include "Scanner.hpp"
     
 
-Scanner::Scanner() : app("YaraX scanner") {
-
-    bool verbose                = false;
-    bool dumpMatches            = false;
-    bool recurseDirectories     = false;
-    
+Scanner::Scanner() : app("YaraX scanner"), verbose(false), dumpMatches(false), recursiveScan(false) {
     app.add_option("-y, --yara", this->sourcePath, "Path to YaraX rule.")->required();
     app.add_option("-t, --target", this->targetPath, "Path to the file to scan.")->required();
     
     app.add_flag("-v, --verbose", this->verbose, "Verbose output");
     app.add_flag("-d, --dump", this->dumpMatches, "Dump each match to the file");
     app.add_flag("-r, --recursive", this->recursiveScan, "Scan directories recursively");
-
 }
 
-int Scanner::parseArguments(int argc, char *argv[]) {
+int Scanner::parseArguments(int argc, char *argv[]) { // NOLINT
     CLI11_PARSE(app, argc, argv);
     return 0;
 }

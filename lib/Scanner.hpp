@@ -1,3 +1,4 @@
+#include <string>
 #include "CLI/CLI.hpp"
 #include "Yara.hpp"
 
@@ -6,8 +7,8 @@ class Scanner {
         Scanner();
         
         bool scan();
-        
-        int parseArguments(int, char *[]);
+
+        int parseArguments(int, char *[]); // NOLINT
 
         ~Scanner();
     
@@ -20,5 +21,4 @@ class Scanner {
 
         std::string sourcePath;
         std::string targetPath;
-
 };

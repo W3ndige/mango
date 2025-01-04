@@ -10,13 +10,11 @@ extern "C" {
     #undef namespace
 }
 
-
 using PatternMatch  = std::tuple<int, int>;
-using PatternMap    = std::map<const char *, std::vector<PatternMatch>>;
-using RuleMap       = std::map<const char *, PatternMap>;
+using PatternMap    = std::map<std::string, std::vector<PatternMatch>>;
+using RuleMap       = std::map<std::string, PatternMap>;
 using FileMap       = std::map<std::filesystem::path, RuleMap>;
 using FullMatchCb   = std::function<void(RuleMap, void *)>;
-
 
 class Yara {  
     public:
@@ -25,17 +23,17 @@ class Yara {
         Yara(uint32_t, bool, bool);
 
         bool addSource(const char *);
-        bool addSourceFromFile(std::filesystem::path);
-        bool addSourceFromDirectory(std::filesystem::path, bool);
+        bool addSourceFromFile(const std::filesystem::path &);
+        bool addSourceFromDirectory(const std::filesystem::path &, bool);
 
         bool initScanner();
-        bool scanFile(std::filesystem::path);
-        bool scanDirectory(std::filesystem::path, bool);
+        bool scanFile(const std::filesystem::path &);
+        bool scanDirectory(const std::filesystem::path &, bool);
         
         void cleanResults();
         void addOnFullMatchCallback(FullMatchCb);
 
-        RuleMap getMatchedIdentifiersForFile(std::filesystem::path);
+        RuleMap getMatchedIdentifiersForFile(const std::filesystem::path &);
 
         ~Yara();
     
@@ -51,8 +49,8 @@ class Yara {
 
         std::filesystem::path current_file;
         
-        const char *current_rule    = nullptr;
-        const char *current_pattern = nullptr;
+        std::string current_rule;
+        std::string current_pattern;
         
         std::vector<uint8_t> current_file_data; 
 

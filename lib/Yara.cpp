@@ -9,9 +9,7 @@
 #include <vector>
 #include <spdlog/spdlog.h>
 
-Yara::Yara(uint32_t flags) {
-    this->dumpMatches = false;
-    this->verbose = false;
+Yara::Yara(uint32_t flags) : dumpMatches(false), verbose(false) {
 
     YRX_RESULT result = yrx_compiler_create(flags, &this->compiler);
     if (result != YRX_RESULT::SUCCESS) {
@@ -19,20 +17,14 @@ Yara::Yara(uint32_t flags) {
     }
 }
 
-Yara::Yara(uint32_t flags, bool dumpMatches) {
-    this->dumpMatches = dumpMatches;
-    this->verbose = false;
-
+Yara::Yara(uint32_t flags, bool dumpMatches) : dumpMatches(dumpMatches), verbose(false) {
     YRX_RESULT result = yrx_compiler_create(flags, &this->compiler);
     if (result != YRX_RESULT::SUCCESS) {
         spdlog::error("Failed to create Yara compiler. Error: {}", yrx_last_error()); 
     }
 }
 
-Yara::Yara(uint32_t flags, bool dumpMatches, bool verbose) {
-    this->dumpMatches = dumpMatches;
-    this->verbose = verbose;
-
+Yara::Yara(uint32_t flags, bool dumpMatches, bool verbose) : dumpMatches(dumpMatches), verbose(verbose) {
     YRX_RESULT result = yrx_compiler_create(flags, &this->compiler);
     if (result != YRX_RESULT::SUCCESS) {
         spdlog::error("Failed to create Yara compiler. Error: {}", yrx_last_error()); 
@@ -50,7 +42,7 @@ bool Yara::addSource(const char *source) {
     return true;
 }
 
-bool Yara::addSourceFromFile(std::filesystem::path path) {
+bool Yara::addSourceFromFile(const std::filesystem::path &path) {
     std::ifstream sourceFile(path, std::ios::in | std::ios::ate);
     if (!sourceFile) {
         spdlog::error("Failed to read source file: {}", path.string());
@@ -61,26 +53,26 @@ bool Yara::addSourceFromFile(std::filesystem::path path) {
     sourceFile.seekg(0, std::ios::beg);
 
     std::string source(fileSize, '\0');
-    sourceFile.read(&source[0], fileSize);
+    sourceFile.read(source.data(), fileSize);
 
     spdlog::info("Adding {} rule", path.string());
 
     return addSource(source.c_str());
 }
 
-bool Yara::addSourceFromDirectory(std::filesystem::path path, bool recursive) {
+bool Yara::addSourceFromDirectory(const std::filesystem::path &path, bool recursive) {
     if (!std::filesystem::is_directory(path)) {
         spdlog::error("[{}] is not a directory.", path.string());
         return false;
     }
     
     if (recursive) {
-        for (auto &entry : std::filesystem::recursive_directory_iterator(path)) {
+        for (const auto &entry : std::filesystem::recursive_directory_iterator(path)) {
             this->addSourceFromFile(entry.path());
         }
 
     } else {
-        for (auto &entry : std::filesystem::directory_iterator(path)) {
+        for (const auto &entry : std::filesystem::directory_iterator(path)) {
             this->addSourceFromFile(entry.path());
         }
     }
@@ -122,7 +114,7 @@ void Yara::addOnFullMatchCallback(FullMatchCb callback) {
 }
 
 
-bool Yara::scanFile(std::filesystem::path path) {
+bool Yara::scanFile(const std::filesystem::path &path) {
     if (this->verbose) {
         spdlog::info("[{}] Scanning...", path.string());
     }
@@ -157,7 +149,7 @@ bool Yara::scanFile(std::filesystem::path path) {
     return this->getMatchedIdentifiersForFile(path).size() > 0;
 }
 
-bool Yara::scanDirectory(std::filesystem::path path, bool recursive) {
+bool Yara::scanDirectory(const std::filesystem::path &path, bool recursive) {
     if (!std::filesystem::is_directory(path)) {
         spdlog::error("[{}] is not a directory.", path.string());
         return false;
@@ -167,7 +159,7 @@ bool Yara::scanDirectory(std::filesystem::path path, bool recursive) {
         try {
             for (std::filesystem::recursive_directory_iterator it(path, std::filesystem::directory_options::skip_permission_denied), end; it != end; ++it) {
                 try {
-                    this->scanFile(it->path());
+                   this->scanFile(it->path());
                 } catch (const std::filesystem::filesystem_error &e) {
                     spdlog::error("[{}] Error accessing file {}", it->path().string(), e.what());
                     it.disable_recursion_pending(); 
@@ -177,7 +169,7 @@ bool Yara::scanDirectory(std::filesystem::path path, bool recursive) {
             spdlog::error("[{}] Error iterating directory {}", path.string(), e.what());
         } 
     } else {
-        for (auto &entry : std::filesystem::directory_iterator(path)) {
+        for (const auto &entry : std::filesystem::directory_iterator(path)) {
             this->scanFile(entry.path());
         }
     }
@@ -186,12 +178,12 @@ bool Yara::scanDirectory(std::filesystem::path path, bool recursive) {
     return true;
 }
 
-RuleMap Yara::getMatchedIdentifiersForFile(std::filesystem::path path) {
+RuleMap Yara::getMatchedIdentifiersForFile(const std::filesystem::path &path) {
     if (!this->results.empty()) {
         return this->results[path];
     }
 
-    return RuleMap();
+    return RuleMap{};
 } 
 
 void Yara::onMatchingCb(const struct YRX_RULE *rule, void *data) {
@@ -208,11 +200,8 @@ void Yara::onMatchingCb(const struct YRX_RULE *rule, void *data) {
         return;
     }
 
-    char *identifierString = new char[identifierLength + 1];
-    std::memcpy(identifierString, identifier, identifierLength);
-    identifierString[identifierLength] = '\0';
-    
-    yara->current_rule = identifierString;
+    std::string identifierString(reinterpret_cast<const char*>(identifier), identifierLength);
+    yara->current_rule = std::move(identifierString);
     
     result = yrx_rule_iter_patterns(rule, Yara::onPatternCb, data);
     if (result != YRX_RESULT::SUCCESS) {
@@ -237,10 +226,8 @@ void Yara::onPatternCb(const struct YRX_PATTERN *pattern, void *data) {
         spdlog::error("Failed to recover the identifier of a pattern. Error: {}", yrx_last_error());
         return;
     }
-
-    char *identifierString = new char[identifierLength + 1];
-    std::memcpy(identifierString, identifier, identifierLength);
-    identifierString[identifierLength] = '\0';
+    
+    std::string identifierString(reinterpret_cast<const char*>(identifier), identifierLength);
     yara->current_pattern = identifierString;
 
     result = yrx_pattern_iter_matches(pattern, onPatternMatchesCb, data);
